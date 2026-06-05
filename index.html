@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QR Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@300;400;600&family=Inter:wght@300;400&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── DARK THEME (default) — fondo azul petróleo #0a4a6e ── */
+  :root,
+  [data-theme="dark"] {
+    --bg:           #0a4a6e;
+    --surface:      rgba(5,18,32,0.72);
+    --surface2:     rgba(8,28,52,0.80);
+    --border:       rgba(255,255,255,0.13);
+    --border-hover: rgba(255,255,255,0.28);
+    --text:         #ffffff;
+    --muted:        rgba(255,255,255,0.65);
+    --accent:       #00e5ff;
+    --accent2:      #ff9500;
+    --accent-glow:  rgba(94,232,255,0.18);
+    --card-shadow:  0 4px 36px rgba(0,0,0,0.45);
+    --input-bg:     rgba(3,14,24,0.60);
+    --input-focus:  rgba(5,18,32,0.80);
+    --seg-active-bg:rgba(8,28,52,0.85);
+    --tabs-bg:      rgba(5,18,32,0.72);
+    --dl-bg:        rgba(8,28,52,0.80);
+  }
+
+  /* ── LIGHT THEME — azul pálido ── */
+  [data-theme="light"] {
+    --bg:           #c8e4f5;
+    --surface:      #edf6fd;
+    --surface2:     #d6ecf8;
+    --border:       rgba(14,70,120,0.13);
+    --border-hover: rgba(14,70,120,0.26);
+    --text:         #01111a;
+    --muted:        #1a5070;
+    --accent:       #0e5f8f;
+    --accent2:      #d4890a;
+    --accent-glow:  rgba(14,95,143,0.16);
+    --card-shadow:  0 2px 20px rgba(10,50,100,0.10);
+    --input-bg:     #d6ecf8;
+    --input-focus:  #edf6fd;
+    --seg-active-bg:#edf6fd;
+    --tabs-bg:      #edf6fd;
+    --dl-bg:        #d6ecf8;
+  }
+
+  :root {
+    --radius: 14px;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--font-mono);
+    background: linear-gradient(135deg, #0a2a4a 0%, #0a4a6e 30%, #0d6e6e 60%, #2d1b6e 100%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px 60px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    transition: background 0.35s, color 0.35s;
+  }
+
+  #circuit-bg {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.35s;
+  }
+
+  .orb {
+    position: fixed; border-radius: 50%;
+    filter: blur(90px); pointer-events: none; z-index: 0;
+    transition: opacity 0.35s;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(80,40,255,0.18); top: -130px; right: -130px; opacity: 0.8; }
+  .orb-2 { width: 360px; height: 360px; background: rgba(0,180,200,0.16); bottom: -80px; left: -80px; opacity: 0.8; }
+  .orb-3 { width: 280px; height: 280px; background: rgba(255,140,0,0.12); top: 45%; left: -80px; opacity: 0.6; }
+  .orb-4 { width: 220px; height: 220px; background: rgba(0,210,160,0.12); bottom: 20%; right: -60px; opacity: 0.6; }
+
+  .container {
+    width: 100%; max-width: 720px;
+    position: relative; z-index: 1;
+  }
+
+  /* ── HEADER ── */
+  header {
+    margin-bottom: 36px;
+    animation: fadeUp 0.6s ease both;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+
+  .header-left {}
+
+  .logo-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #08001a, #1a003a, #001a3a);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 18px var(--accent-glow);
+    flex-shrink: 0;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    transition: color 0.35s;
+  }
+
+  .subtitle { font-size: 12.5px; color: rgba(255,255,255,0.70); letter-spacing: 0.02em; transition: color 0.35s; }
+
+  /* ── THEME TOGGLE ── */
+  .theme-btn {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border-hover);
+    background: var(--surface);
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    box-shadow: var(--card-shadow);
+    margin-top: 2px;
+  }
+  .theme-btn:hover { color: var(--accent); border-color: var(--accent); transform: scale(1.08); }
+  .theme-btn .icon-sun  { display: none; }
+  .theme-btn .icon-moon { display: block; }
+  [data-theme="light"] .theme-btn .icon-sun  { display: block; }
+  [data-theme="light"] .theme-btn .icon-moon { display: none; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex; gap: 4px;
+    background: var(--tabs-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s 0.1s ease both;
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: background 0.35s, border-color 0.35s;
+  }
+
+  .tab {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 10px 8px; border-radius: 10px; border: 1px solid transparent;
+    background: transparent; color: rgba(255,255,255,0.70);
+    font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .tab svg { flex-shrink: 0; }
+  .tab:hover { color: var(--accent); background: rgba(108,142,255,0.06); }
+  .tab.active {
+    background: linear-gradient(135deg, rgba(0,180,255,0.18), rgba(100,0,255,0.14), rgba(0,200,180,0.10));
+    color: var(--accent);
+    border-color: rgba(108,142,255,0.25);
+    box-shadow: 0 0 10px rgba(108,142,255,0.10);
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    animation: fadeUp 0.6s 0.2s ease both;
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: background 0.35s, border-color 0.3s, box-shadow 0.35s;
+  }
+  .card:hover { border-color: var(--border-hover); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── FIELDS ── */
+  .field { margin-bottom: 20px; }
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.65); margin-bottom: 8px;
+    transition: color 0.35s;
+  }
+
+  input[type=text], input[type=url], input[type=password], textarea, select {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.35s;
+    appearance: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    background: var(--input-focus);
+  }
+  textarea { height: 90px; resize: vertical; }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b80' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px; cursor: pointer;
+  }
+  select option { background: var(--surface2); color: var(--text); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ── SEGMENTED CONTROL ── */
+  .seg-control {
+    display: flex; background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px; gap: 4px;
+    transition: background 0.35s;
+  }
+  .seg-btn {
+    flex: 1; padding: 8px 6px; border: none;
+    background: transparent; border-radius: 7px;
+    color: rgba(255,255,255,0.65); font-family: var(--font-mono);
+    font-size: 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .seg-btn.active {
+    background: var(--seg-active-bg); color: var(--accent);
+    border: 1px solid var(--border-hover); font-weight: 500;
+  }
+
+  /* ── COLOR PICKERS ── */
+  .color-group { display: flex; gap: 12px; margin-top: 4px; }
+  .color-item {
+    display: flex; align-items: center; gap: 10px; flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    transition: background 0.35s;
+  }
+  input[type=color] {
+    width: 30px; height: 30px; border: none;
+    border-radius: 6px; cursor: pointer; padding: 0; background: none;
+  }
+  .color-label { font-size: 12px; color: rgba(255,255,255,0.60); }
+
+  /* ── DROP ZONE ── */
+  .drop-zone {
+    border: 1.5px dashed var(--border-hover);
+    border-radius: 10px; padding: 24px;
+    text-align: center; cursor: pointer;
+    transition: all 0.2s; color: rgba(255,255,255,0.65); font-size: 13px;
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: var(--accent);
+    background: rgba(108,142,255,0.05); color: var(--text);
+  }
+  .drop-zone.has-file { border-style: solid; border-color: var(--accent2); }
+  .drop-icon { font-size: 26px; margin-bottom: 8px; }
+  .thumb {
+    width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
+    margin: 0 auto 8px; display: none; border: 2px solid var(--accent2);
+  }
+
+  /* ── SLIDER ── */
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  .slider-row input[type=range] {
+    flex: 1; background: transparent; border: none; padding: 0;
+    height: 4px; accent-color: var(--accent); box-shadow: none;
+  }
+  .slider-val { font-size: 12px; color: #ffffff; min-width: 36px; text-align: right; }
+
+  /* ── TOGGLE SWITCH ── */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--input-bg);
+    border: 1px solid var(--border); border-radius: 10px;
+    transition: background 0.35s;
+  }
+  .toggle-label { font-size: 13px; color: var(--text); transition: color 0.35s; }
+  .toggle-hint { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+  .switch input { display: none; }
+  .slider-sw {
+    position: absolute; inset: 0;
+    background: var(--surface2); border-radius: 22px;
+    border: 1px solid var(--border-hover); cursor: pointer; transition: background 0.2s;
+  }
+  .slider-sw::before {
+    content: ''; position: absolute;
+    width: 16px; height: 16px; left: 2px; top: 2px;
+    background: var(--muted); border-radius: 50%; transition: all 0.2s;
+  }
+  .switch input:checked + .slider-sw { background: var(--accent); border-color: var(--accent); }
+  .switch input:checked + .slider-sw::before { transform: translateX(18px); background: #fff; }
+
+  /* ── GENERATE BUTTON ── */
+  .gen-wrap { margin-top: 24px; animation: fadeUp 0.6s 0.3s ease both; }
+  .btn-generate {
+    width: 100%; padding: 16px;
+    background: linear-gradient(90deg, #0055ff 0%, #5500ff 40%, #0099cc 75%, #00ccaa 100%);
+    border: none; border-radius: var(--radius); color: #fff;
+    font-family: var(--font-display); font-size: 15px; font-weight: 600;
+    letter-spacing: 0.06em; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.2s; box-shadow: 0 4px 20px var(--accent-glow);
+  }
+  .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 8px 30px var(--accent-glow); filter: brightness(1.08); }
+  .btn-generate:active { transform: translateY(0); }
+
+  /* ── OUTPUT ── */
+  .output { display: none; margin-top: 28px; animation: fadeUp 0.5s ease both; }
+  .output.visible { display: block; }
+  .output-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+    box-shadow: var(--card-shadow); transition: background 0.35s;
+  }
+  .qr-frame {
+    position: relative; padding: 16px; background: #fff; border-radius: 12px;
+    display: inline-block;
+    box-shadow: 0 0 30px var(--accent-glow), 0 2px 12px rgba(0,0,0,0.12);
+  }
+  .qr-frame canvas, .qr-frame img { display: block; }
+  #logo-overlay {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%; border: 3px solid #fff;
+    overflow: hidden; display: none; background: #fff;
+  }
+  .output-meta { text-align: center; }
+  .type-badge {
+    display: inline-block; padding: 4px 14px;
+    background: rgba(108,142,255,0.12);
+    border: 1px solid rgba(108,142,255,0.25);
+    border-radius: 20px; font-size: 11px; color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .content-preview { font-size: 12px; color: rgba(255,255,255,0.65); max-width: 300px; word-break: break-all; }
+  .dl-row { display: flex; gap: 10px; }
+  .btn-dl {
+    padding: 11px 22px; border-radius: 10px;
+    border: 1px solid var(--border-hover);
+    background: var(--dl-bg); color: var(--text);
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 7px; transition: all 0.2s;
+  }
+  .btn-dl:hover { border-color: var(--accent); color: var(--accent); background: rgba(108,142,255,0.07); }
+
+  /* ── ADVANCED ── */
+  .advanced-toggle {
+    display: flex; align-items: center; gap: 8px;
+    color: rgba(255,255,255,0.65); font-size: 12px; cursor: pointer;
+    user-select: none; padding: 12px 0 0;
+    border-top: 1px solid var(--border); margin-top: 20px;
+    transition: color 0.2s, border-color 0.35s;
+  }
+  .advanced-toggle:hover { color: var(--accent); }
+  .advanced-content { display: none; padding-top: 16px; }
+  .advanced-content.open { display: block; }
+
+  .hint { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 520px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .tab span { display: none; }
+    h1 { font-size: 22px; }
+  }
+
+  /* ── Per-theme body gradients ── */
+  [data-theme="dark"] body {
+    background: linear-gradient(135deg, #04081e 0%, #0a1f6e 22%, #1a0d6b 44%, #0d4a6b 65%, #063a50 82%, #050e2a 100%) fixed;
+  }
+  [data-theme="light"] body {
+    background: linear-gradient(135deg, #c8d8f8 0%, #d4c8f5 20%, #f0c8ee 40%, #f5d0c0 60%, #c8eaf0 80%, #c8d8f8 100%) fixed;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="circuit-bg"></canvas>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="orb orb-4"></div>
+
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <div class="logo-row">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0e0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <path d="M14 14h2v2h-2zM18 14h3M14 18v3M18 18h3v3h-3z"/>
+          </svg>
+        </div>
+        <h1>QR Generator</h1>
+      </div>
+      <p class="subtitle">Links · Texto · WiFi · Con imagen</p>
+    </div>
+
+    <!-- Theme toggle -->
+    <button class="theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+      <!-- Moon (shown in dark) -->
+      <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+      <!-- Sun (shown in light) -->
+      <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('link')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      <span>Link</span>
+    </button>
+    <button class="tab" onclick="switchTab('text')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      <span>Texto</span>
+    </button>
+    <button class="tab" onclick="switchTab('wifi')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
+      <span>WiFi</span>
+    </button>
+    <button class="tab" onclick="switchTab('image')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span>Imagen</span>
+    </button>
+  </div>
+
+  <!-- Form card -->
+  <div class="card">
+
+    <!-- Link -->
+    <div class="panel active" id="panel-link">
+      <div class="field">
+        <label>URL o enlace</label>
+        <input type="url" id="link-url" placeholder="https://ejemplo.com" value="https://" />
+      </div>
+    </div>
+
+    <!-- Text -->
+    <div class="panel" id="panel-text">
+      <div class="field">
+        <label>Contenido</label>
+        <textarea id="text-content" placeholder="Texto, teléfono, email, dirección…"></textarea>
+      </div>
+    </div>
+
+    <!-- WiFi -->
+    <div class="panel" id="panel-wifi">
+      <div class="field">
+        <label>Nombre de red (SSID)</label>
+        <input type="text" id="wifi-ssid" placeholder="Mi red WiFi" />
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div style="position:relative">
+          <input type="password" id="wifi-pass" placeholder="Contraseña de la red" style="padding-right:46px" />
+          <button onclick="togglePass()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.65);padding:4px;">
+            <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Seguridad</label>
+        <div class="seg-control" id="wifi-security">
+          <button class="seg-btn active" onclick="setWifiSec('WPA',this)">WPA / WPA2</button>
+          <button class="seg-btn" onclick="setWifiSec('WEP',this)">WEP</button>
+          <button class="seg-btn" onclick="setWifiSec('nopass',this)">Sin contraseña</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Red oculta</div>
+            <div class="toggle-hint">Activa si la red no es visible</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="wifi-hidden" /><span class="slider-sw"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div class="panel" id="panel-image">
+      <div class="field">
+        <label>URL de destino</label>
+        <input type="url" id="img-url" placeholder="https://ejemplo.com" value="https://" />
+      </div>
+      <div class="field">
+        <label>Logo central</label>
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()">
+          <img id="thumb" class="thumb" />
+          <div class="drop-icon">↑</div>
+          <div id="drop-label">Haz clic o arrastra una imagen</div>
+          <div class="hint" style="margin-top:6px">PNG, JPG o SVG · recomendado cuadrada</div>
+        </div>
+        <input type="file" id="file-inp" accept="image/*" style="display:none" onchange="handleFile(this)" />
+      </div>
+      <div class="field">
+        <label>Tamaño del logo · <span style="color:#ffffff" id="logo-pct">25</span>%</label>
+        <div class="slider-row">
+          <input type="range" min="10" max="35" value="25" step="1" id="logo-size"
+            oninput="document.getElementById('logo-pct').textContent=this.value;document.getElementById('logo-sz-display').textContent=this.value+'%'" />
+          <span class="slider-val" id="logo-sz-display">25%</span>
+        </div>
+        <p class="hint">Mayor tamaño puede dificultar la lectura · usa corrección "H"</p>
+      </div>
+    </div>
+
+    <!-- Advanced -->
+    <div class="advanced-toggle" onclick="toggleAdvanced(this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41"/></svg>
+      Opciones avanzadas
+      <svg id="adv-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-left:auto;transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="advanced-content" id="adv-content">
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="field" style="margin:0">
+          <label>Tamaño</label>
+          <select id="qr-size">
+            <option value="200">Pequeño · 200px</option>
+            <option value="300" selected>Mediano · 300px</option>
+            <option value="400">Grande · 400px</option>
+            <option value="512">XL · 512px</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Corrección de errores</label>
+          <select id="qr-ec">
+            <option value="L">L — mínimo</option>
+            <option value="M" selected>M — estándar</option>
+            <option value="Q">Q — alto</option>
+            <option value="H">H — máximo</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Colores</label>
+        <div class="color-group">
+          <div class="color-item">
+            <input type="color" id="c-dark" value="#000000" />
+            <div>
+              <div style="font-size:12px;color:#ffffff">Módulos QR</div>
+              <div class="color-label">Color principal</div>
+            </div>
+          </div>
+          <div class="color-item">
+            <input type="color" id="c-light" value="#ffffff" />
+            <div>
+              <div style="font-size:12px;color:#ffffff">Fondo QR</div>
+              <div class="color-label">Color de fondo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate button -->
+  <div class="gen-wrap">
+    <button class="btn-generate" onclick="generate()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zM18 14h3M14 18v3M18 18h3v3h-3z"/></svg>
+      Generar código QR
+    </button>
+  </div>
+
+  <!-- Output -->
+  <div class="output" id="output">
+    <div class="output-card">
+      <div class="qr-frame">
+        <div id="qr-render"></div>
+        <div id="logo-overlay"><img id="logo-img" style="width:100%;height:100%;object-fit:cover" /></div>
+      </div>
+      <div class="output-meta">
+        <div class="type-badge" id="out-badge">LINK</div>
+        <div class="content-preview" id="out-preview"></div>
+      </div>
+      <div class="dl-row">
+        <button class="btn-dl" onclick="dlPng()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar PNG
+        </button>
+        <button class="btn-dl" onclick="copySvg()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Copiar SVG
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+/* ── Theme toggle ── */
+function toggleTheme() {
+  const html = document.documentElement;
+  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  rebuildCircuit();
+}
+
+/* ── Tabs ── */
+let currentTab = 'link';
+function switchTab(t) {
+  currentTab = t;
+  document.querySelectorAll('.tab').forEach((b,i) =>
+    b.classList.toggle('active', ['link','text','wifi','image'][i] === t));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+}
+
+/* ── WiFi ── */
+let wifiSecType = 'WPA';
+function setWifiSec(type, el) {
+  wifiSecType = type;
+  document.querySelectorAll('#wifi-security .seg-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const f = document.getElementById('wifi-pass');
+  f.disabled = type === 'nopass'; f.style.opacity = type === 'nopass' ? '0.4' : '1';
+}
+function togglePass() {
+  const i = document.getElementById('wifi-pass');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+/* ── Advanced ── */
+function toggleAdvanced() {
+  const c = document.getElementById('adv-content');
+  const a = document.getElementById('adv-arrow');
+  c.classList.toggle('open');
+  a.style.transform = c.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+/* ── File / drop ── */
+let logoDataUrl = null;
+function handleFile(inp) {
+  const file = inp.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    logoDataUrl = e.target.result;
+    const t = document.getElementById('thumb');
+    t.src = logoDataUrl; t.style.display = 'block';
+    document.getElementById('drop-label').textContent = file.name;
+    document.getElementById('drop-zone').classList.add('has-file');
+  };
+  r.readAsDataURL(file);
+}
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) {
+    const fi = document.getElementById('file-inp');
+    const dt = new DataTransfer(); dt.items.add(f); fi.files = dt.files; handleFile(fi);
+  }
+});
+
+/* ── Content ── */
+function escapeWifi(s) {
+  return s.replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/"/g,'\\"').replace(/:/g,'\\:');
+}
+function getContent() {
+  if (currentTab==='link')  return document.getElementById('link-url').value.trim();
+  if (currentTab==='text')  return document.getElementById('text-content').value.trim();
+  if (currentTab==='image') return document.getElementById('img-url').value.trim();
+  if (currentTab==='wifi') {
+    const ssid   = document.getElementById('wifi-ssid').value.trim();
+    const pass   = document.getElementById('wifi-pass').value;
+    const hidden = document.getElementById('wifi-hidden').checked ? 'true' : 'false';
+    const sec    = wifiSecType === 'nopass' ? 'nopass' : wifiSecType;
+    return `WIFI:T:${sec};S:${escapeWifi(ssid)};P:${escapeWifi(pass)};H:${hidden};;`;
+  }
+}
+
+/* ── Generate ── */
+function generate() {
+  const content = getContent();
+  if (!content || content === 'https://' || !content.trim()) {
+    alert('Por favor ingresa el contenido del QR'); return;
+  }
+  const size = parseInt(document.getElementById('qr-size').value);
+  const ec   = document.getElementById('qr-ec').value;
+  const dark = document.getElementById('c-dark').value;
+  const light= document.getElementById('c-light').value;
+
+  const container = document.getElementById('qr-render');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: content, width: size, height: size,
+    colorDark: dark, colorLight: light,
+    correctLevel: QRCode.CorrectLevel[ec]
+  });
+
+  const overlay = document.getElementById('logo-overlay');
+  if (currentTab==='image' && logoDataUrl) {
+    const pct = parseInt(document.getElementById('logo-size').value)/100;
+    const ls = Math.round(size*pct);
+    overlay.style.width = ls+'px'; overlay.style.height = ls+'px';
+    document.getElementById('logo-img').src = logoDataUrl;
+    overlay.style.display = 'block';
+  } else { overlay.style.display = 'none'; }
+
+  const badges = {link:'LINK',text:'TEXTO',wifi:'WIFI',image:'CON LOGO'};
+  document.getElementById('out-badge').textContent = badges[currentTab]||'QR';
+  const preview = currentTab==='wifi'
+    ? (document.getElementById('wifi-ssid').value||'Red WiFi')
+    : content.substring(0,60)+(content.length>60?'…':'');
+  document.getElementById('out-preview').textContent = preview;
+
+  const out = document.getElementById('output');
+  out.classList.add('visible');
+  setTimeout(()=>out.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+/* ── Download ── */
+function getQrCanvas(cb) {
+  const c = document.getElementById('qr-render');
+  const img = c.querySelector('img')||c.querySelector('canvas');
+  const size = parseInt(document.getElementById('qr-size').value);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const withLogo = done => {
+    const ov = document.getElementById('logo-overlay');
+    if (ov.style.display!=='none' && logoDataUrl) {
+      const pct = parseInt(document.getElementById('logo-size').value)/100;
+      const ls = Math.round(size*pct), x=(size-ls)/2, y=(size-ls)/2;
+      const li = new Image();
+      li.onload = ()=>{
+        ctx.save(); ctx.beginPath(); ctx.arc(x+ls/2,y+ls/2,ls/2,0,Math.PI*2); ctx.clip();
+        ctx.fillStyle='#fff'; ctx.fillRect(x,y,ls,ls); ctx.drawImage(li,x,y,ls,ls); ctx.restore();
+        done(canvas);
+      };
+      li.src = logoDataUrl;
+    } else done(canvas);
+  };
+  if (img.tagName==='IMG') {
+    const bi=new Image(); bi.onload=()=>{ ctx.drawImage(bi,0,0,size,size); withLogo(cb); }; bi.src=img.src;
+  } else { ctx.drawImage(img,0,0,size,size); withLogo(cb); }
+}
+function dlPng() {
+  getQrCanvas(canvas => {
+    const a=document.createElement('a'); a.download='qr-code.png'; a.href=canvas.toDataURL('image/png'); a.click();
+  });
+}
+function copySvg() {
+  const c=document.getElementById('qr-render');
+  const img=c.querySelector('img')||c.querySelector('canvas');
+  const size=parseInt(document.getElementById('qr-size').value);
+  const src=img.tagName==='CANVAS'?img.toDataURL():img.src;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><image href="${src}" width="${size}" height="${size}"/></svg>`;
+  navigator.clipboard.writeText(svg).then(()=>alert('SVG copiado al portapapeles')).catch(()=>alert('No se pudo copiar'));
+}
+
+/* ── Circuit board background ── */
+let circuitRAF;
+function rebuildCircuit() { build(); }
+
+(function() {
+  const canvas = document.getElementById('circuit-bg');
+  const ctx = canvas.getContext('2d');
+  const CELL = 50;
+  let W, H, cols, rows, nodes, paths, pulses;
+
+  function getColors() {
+    const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+    return {
+      line:  dark ? 'rgba(255,255,255,0.10)' : 'rgba(14,95,143,0.11)',
+      node:  dark ? 'rgba(255,255,255,0.16)' : 'rgba(14,95,143,0.18)',
+      pulseA:dark ? [0,220,255] : [140,80,230],
+      pulseB:dark ? [255,60,180] : [80,60,200],
+    };
+  }
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    cols = Math.ceil(W/CELL)+1;
+    rows = Math.ceil(H/CELL)+1;
+    build();
+  }
+
+  window.build = function build() {
+    nodes=[]; paths=[]; pulses=[];
+    for (let r=0;r<rows;r++) for (let c=0;c<cols;c++)
+      if (Math.random()<0.36)
+        nodes.push({x:c*CELL, y:r*CELL, r:Math.random()<0.28?3.5:1.8, colorIdx:Math.floor(Math.random()*5)});
+
+    const ns = new Set(nodes.map(n=>`${Math.round(n.x/CELL)},${Math.round(n.y/CELL)}`));
+    nodes.forEach(n => {
+      const cr=Math.round(n.y/CELL), cc=Math.round(n.x/CELL);
+      for (let dc=1;dc<=4;dc++) {
+        if (ns.has(`${cc+dc},${cr}`) && Math.random()<0.48) {
+          paths.push({x1:n.x,y1:n.y,x2:(cc+dc)*CELL,y2:cr*CELL,elbow:null}); break;
+        }
+      }
+      for (let dr=1;dr<=4;dr++) {
+        if (ns.has(`${cc},${cr+dr}`) && Math.random()<0.48) {
+          paths.push({x1:n.x,y1:n.y,x2:cc*CELL,y2:(cr+dr)*CELL,elbow:null}); break;
+        }
+      }
+      if (Math.random()<0.16) {
+        const tc=cc+Math.floor(Math.random()*3+1), tr=cr+Math.floor(Math.random()*3+1);
+        if (tc<cols && tr<rows)
+          paths.push({x1:n.x,y1:n.y,x2:tc*CELL,y2:tr*CELL,elbow:{x:tc*CELL,y:n.y}});
+      }
+    });
+    for (let i=0;i<14;i++) spawnPulse();
+  };
+
+  function spawnPulse() {
+    if (!paths.length) return;
+    pulses.push({
+      path: paths[Math.floor(Math.random()*paths.length)],
+      t: Math.random(),
+      speed: 0.0012+Math.random()*0.0028,
+      size: 2.2+Math.random()*2.2,
+      colorIdx: Math.floor(Math.random()*5)
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    const col = getColors();
+    const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+    ctx.strokeStyle = col.line; ctx.lineWidth=1.1;
+    paths.forEach(p=>{
+      ctx.beginPath(); ctx.moveTo(p.x1,p.y1);
+      p.elbow ? (ctx.lineTo(p.elbow.x,p.elbow.y),ctx.lineTo(p.x2,p.y2)) : ctx.lineTo(p.x2,p.y2);
+      ctx.stroke();
+    });
+
+    const nodeColors = dark
+      ? ['rgba(0,220,255,0.22)','rgba(255,160,0,0.20)','rgba(120,80,255,0.20)','rgba(0,230,160,0.18)','rgba(80,200,255,0.18)']
+      : ['rgba(60,100,240,0.18)','rgba(220,130,0,0.18)','rgba(80,40,200,0.16)','rgba(0,160,120,0.15)','rgba(0,180,220,0.18)'];
+    nodes.forEach(n=>{
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=nodeColors[n.colorIdx % nodeColors.length]; ctx.fill();
+    });
+
+    for (let i=pulses.length-1;i>=0;i--) {
+      const pulse=pulses[i]; pulse.t+=pulse.speed;
+      if (pulse.t>1){pulses.splice(i,1);spawnPulse();continue;}
+      const p=pulse.path; let px,py;
+      if (p.elbow) {
+        const d1=Math.hypot(p.elbow.x-p.x1,p.elbow.y-p.y1);
+        const d2=Math.hypot(p.x2-p.elbow.x,p.y2-p.elbow.y);
+        const tot=d1+d2, trav=pulse.t*tot;
+        if (trav<=d1){const tt=trav/d1;px=p.x1+(p.elbow.x-p.x1)*tt;py=p.y1+(p.elbow.y-p.y1)*tt;}
+        else{const tt=(trav-d1)/d2;px=p.elbow.x+(p.x2-p.elbow.x)*tt;py=p.elbow.y+(p.y2-p.elbow.y)*tt;}
+      } else {px=p.x1+(p.x2-p.x1)*pulse.t;py=p.y1+(p.y2-p.y1)*pulse.t;}
+
+      const alpha=Math.sin(pulse.t*Math.PI);
+      // cycle 3 colours per pulse
+      const palettes = dark
+        ? [[0,220,255],[255,165,0],[120,255,80],[80,80,255],[0,230,200]]
+        : [[60,100,240],[240,140,0],[140,220,60],[80,40,200],[0,180,140]];
+      const [ar,ag,ab] = palettes[pulse.colorIdx % palettes.length];
+      ctx.beginPath();ctx.arc(px,py,pulse.size,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${ar},${ag},${ab},${alpha*0.85})`;ctx.fill();
+      const grd=ctx.createRadialGradient(px,py,0,px,py,pulse.size*5);
+      grd.addColorStop(0,`rgba(${ar},${ag},${ab},${alpha*0.22})`);
+      grd.addColorStop(1,'transparent');
+      ctx.beginPath();ctx.arc(px,py,pulse.size*5,0,Math.PI*2);
+      ctx.fillStyle=grd;ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize',resize);
+  resize();
+  draw();
+})();
+</script>
+</body>
+</html>
