@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>QR Generator</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230055ff'/%3E%3Cstop offset='0.5' stop-color='%235500ff'/%3E%3Cstop offset='1' stop-color='%2300ccaa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Crect x='5' y='5' width='9' height='9' rx='1.5' fill='none' stroke='white' stroke-width='2'/%3E%3Crect x='7' y='7' width='5' height='5' rx='0.5' fill='white'/%3E%3Crect x='18' y='5' width='9' height='9' rx='1.5' fill='none' stroke='white' stroke-width='2'/%3E%3Crect x='20' y='7' width='5' height='5' rx='0.5' fill='white'/%3E%3Crect x='5' y='18' width='9' height='9' rx='1.5' fill='none' stroke='white' stroke-width='2'/%3E%3Crect x='7' y='20' width='5' height='5' rx='0.5' fill='white'/%3E%3Crect x='18' y='18' width='3' height='3' rx='0.5' fill='white'/%3E%3Crect x='23' y='18' width='4' height='3' rx='0.5' fill='white'/%3E%3Crect x='18' y='23' width='3' height='4' rx='0.5' fill='white'/%3E%3Crect x='23' y='23' width='4' height='4' rx='0.5' fill='white'/%3E%3C/svg%3E" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@300;400;600&family=Inter:wght@300;400&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -754,26 +755,50 @@ function getQrCanvas(cb) {
   const c = document.getElementById('qr-render');
   const img = c.querySelector('img')||c.querySelector('canvas');
   const size = parseInt(document.getElementById('qr-size').value);
+  const margin = Math.round(size * 0.06); // zona silenciosa más fina
+  const total = size + margin * 2;
+  const radius = Math.round(total * 0.045); // esquinas suaves
+  const bgColor = document.getElementById('c-light').value || '#ffffff';
+
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
+  canvas.width = canvas.height = total;
   const ctx = canvas.getContext('2d');
+
+  const roundedRect = (x, y, w, h, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  };
+
+  roundedRect(0, 0, total, total, radius);
+  ctx.fillStyle = bgColor;
+  ctx.fill();
+  ctx.save();
+  roundedRect(0, 0, total, total, radius);
+  ctx.clip();
+
   const withLogo = done => {
     const ov = document.getElementById('logo-overlay');
     if (ov.style.display!=='none' && logoDataUrl) {
       const pct = parseInt(document.getElementById('logo-size').value)/100;
-      const ls = Math.round(size*pct), x=(size-ls)/2, y=(size-ls)/2;
+      const ls = Math.round(size*pct), x=margin+(size-ls)/2, y=margin+(size-ls)/2;
       const li = new Image();
       li.onload = ()=>{
         ctx.save(); ctx.beginPath(); ctx.arc(x+ls/2,y+ls/2,ls/2,0,Math.PI*2); ctx.clip();
         ctx.fillStyle='#fff'; ctx.fillRect(x,y,ls,ls); ctx.drawImage(li,x,y,ls,ls); ctx.restore();
+        ctx.restore();
         done(canvas);
       };
       li.src = logoDataUrl;
-    } else done(canvas);
+    } else { ctx.restore(); done(canvas); }
   };
   if (img.tagName==='IMG') {
-    const bi=new Image(); bi.onload=()=>{ ctx.drawImage(bi,0,0,size,size); withLogo(cb); }; bi.src=img.src;
-  } else { ctx.drawImage(img,0,0,size,size); withLogo(cb); }
+    const bi=new Image(); bi.onload=()=>{ ctx.drawImage(bi,margin,margin,size,size); withLogo(cb); }; bi.src=img.src;
+  } else { ctx.drawImage(img,margin,margin,size,size); withLogo(cb); }
 }
 function dlPng() {
   getQrCanvas(canvas => {
@@ -781,12 +806,12 @@ function dlPng() {
   });
 }
 function copySvg() {
-  const c=document.getElementById('qr-render');
-  const img=c.querySelector('img')||c.querySelector('canvas');
-  const size=parseInt(document.getElementById('qr-size').value);
-  const src=img.tagName==='CANVAS'?img.toDataURL():img.src;
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><image href="${src}" width="${size}" height="${size}"/></svg>`;
-  navigator.clipboard.writeText(svg).then(()=>alert('SVG copiado al portapapeles')).catch(()=>alert('No se pudo copiar'));
+  getQrCanvas(canvas => {
+    const total = canvas.width;
+    const src = canvas.toDataURL('image/png');
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="${total}"><image href="${src}" width="${total}" height="${total}"/></svg>`;
+    navigator.clipboard.writeText(svg).then(()=>alert('SVG copiado al portapapeles (incluye el borde blanco necesario para el escaneo)')).catch(()=>alert('No se pudo copiar'));
+  });
 }
 
 /* ── Circuit board background ── */
