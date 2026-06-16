@@ -1,2 +1,2 @@
-# QRGenerator
+# [QRGenerator](https://tedearandano.github.io/QRGenerator/)
 
